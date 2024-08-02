@@ -1,0 +1,1 @@
+#define MAX_FILES 0x1000
