@@ -37,9 +37,20 @@ int getfile_content(char* path, char* fname, char* buffer) {
     if(access(f_path, F_OK) != 0) {
         return errno;
     }
+    FILE *fptr;
+    char *c_ptr;
+    char *c_itr = c_ptr;
 
+    fptr = fopen(f_path, "r");
+    while((*(c_itr++) = fgetc(fptr)) != EOF) {
+    }
+    buffer = c_ptr;
 
-
+    free(f_path);
+    if(f_path != NULL) {
+        fclose(fptr);
+    }
+    printf("%s", buffer);
     return 0;
 }
 
@@ -87,17 +98,29 @@ int main() {
         printf("METHOD: %s\n", request_line.method);
         printf("URL: %s\n", request_line.url);
 
-        char pwd[4096];
-        getcwd(pwd, sizeof(pwd));
-        strcat(pwd, "/html");
+        // char pwd[4096];
+        // getcwd(pwd, sizeof(pwd));
+        // strcat(pwd, "./html");
 
         char* f_contents;
 
-        if(getfile_content(pwd, request_line.url, f_contents) != 0) {
-            fprintf(stderr,"File does not exist: ERROR %d\n", errno);
-            return errno;
+        // if(
+            getfile_content("./html", request_line.url, f_contents);
+            // != 0) {
+            // fprintf(stderr,"File does not exist: ERROR %d\n", errno);
+            // return errno;
+        // }
+
+
+        int total_bytes = sizeof(f_contents);
+        int bytes_sent = 0;
+        int bytes_sent_total = 0;
+        while(bytes_sent_total < total_bytes) {
+            bytes_sent = send(remote_fd, f_contents, total_bytes, 0);
+            bytes_sent_total += bytes_sent;
         }
 
+        free(f_contents);
         close(remote_fd);
     }
 
