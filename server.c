@@ -104,12 +104,10 @@ int main() {
 
         char* f_contents;
 
-        if(
-            getfile_content("./html", request_line.url, f_contents)
-            != 0) {
+        if(getfile_content("./html", request_line.url, f_contents) != 0) {
             fprintf(stderr,"File does not exist: ERROR %d\n", errno);
             return errno;
-        // }
+        }
 
 
         int total_bytes = sizeof(f_contents);
@@ -118,7 +116,7 @@ int main() {
         while(bytes_sent_total < total_bytes) {
             bytes_sent = send(remote_fd, f_contents, total_bytes, 0);
             bytes_sent_total += bytes_sent;
-        }errno
+        }
 
         free(f_contents);
         close(remote_fd);
