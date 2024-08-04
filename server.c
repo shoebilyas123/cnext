@@ -13,7 +13,7 @@
 #define BACKLOGS 20
 
 #define MAX_URL_LEN 2048
-#define MAX_REQ_SIZE 4096
+#define MAX_REQ_SIZE 0x100
 
 struct req_line {
     char* method;
@@ -27,9 +27,9 @@ int get_req_line(struct req_line* req_line_res, char *buffer) {
     return 0;
 }
 
-int getfile_content(char* path, char* fname, char* buffer) {
+int getfile_content(char* path, char* fname, char* f_buff) {
     // F_OK: mode parameter to check the existence of a path
-    char* f_path = (char *)malloc(1+strlen(path)+strlen(fname));
+    char* f_path = (char *)malloc(1+strlen(path)+strlen(fname)+strlen(".html"));
     strcpy(f_path, path);
     strcat(f_path, fname);
     strcat(f_path, ".html");
@@ -42,15 +42,18 @@ int getfile_content(char* path, char* fname, char* buffer) {
     char *c_itr = c_ptr;
 
     fptr = fopen(f_path, "r");
-    while((*(c_itr++) = fgetc(fptr)) != EOF) {
+    char  c_reader;
+    while((c_reader = fgetc(fptr)) != EOF) {
+        *(c_itr++) = c_reader;
     }
-    buffer = c_ptr;
 
-    free(f_path);
-    if(f_path != NULL) {
+    strcpy(f_buff, c_ptr);
+    printf("%s\n", c_ptr);
+
+    // if(fptr != NULL) {
         fclose(fptr);
-    }
-    printf("%s", buffer);
+    // }
+    printf("%s", f_buff);
     return 0;
 }
 
@@ -87,39 +90,40 @@ int main() {
 
     while(1) {
         // Accept will block until there is a connection in the accept queue.
-        remote_fd = accept(srvfd, (struct sockaddr *)&remote_addr, &remote_addr_len);
-        printf("Incoming connection: SOCKET_FD_ID:%d\n", remote_fd);
+        int r_fd = accept(srvfd, (struct sockaddr *)&remote_addr, &remote_addr_len);
+        printf("Incoming connection: SOCKET_FD_ID:%d\n", r_fd);
 
         char buffer[MAX_REQ_SIZE];
-        recv(remote_fd, buffer, MAX_REQ_SIZE, 0);
+        recv(r_fd, &buffer, MAX_REQ_SIZE, 0);
 
-        get_req_line(&request_line, buffer);
+        char *_method = strtok(buffer, " ");
+        char *_url = strtok(NULL, " ");
 
-        printf("METHOD: %s\n", request_line.method);
-        printf("URL: %s\n", request_line.url);
+        char* f_path = (char *)malloc(1+strlen(".html")+strlen("./html")+strlen(_url));
+        strcpy(f_path, "./html");
+        strcat(f_path, _url);
+        strcat(f_path, ".html");
 
-        // char pwd[4096];
-        // getcwd(pwd, sizeof(pwd));
-        // strcat(pwd, "./html");
+        if(access(f_path, F_OK) != 0) {
+            char *res_404 = "HTTP/1.1 404 Not Found\r\n\r\n";
+            size_t bytes_to_sent = strlen(res_404);
+            int bytes_sent = send(r_fd, res_404, bytes_to_sent, 0);
+        }else {
+            FILE *fp;
+            fp = fopen(f_path, "r");
+            long fsize = ftell(fp);
+            // fclose(fp);
 
-        char* f_contents;
+            char *f_contents = (char *)malloc(fsize+1);
+            getfile_content("./html", _url, f_contents);
+            printf("%s", f_contents);
 
-        if(getfile_content("./html", request_line.url, f_contents) != 0) {
-            fprintf(stderr,"File does not exist: ERROR %d\n", errno);
-            return errno;
+            // char res_200[BUFSIZ];
+            // snprintf(res_200, sizeof(res_200), "HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\nContent-Length: %d\r\n\r\n%s\r\n\r\n", c_len, f_contents);
+            // send(r_fd, res_line, strlen(res_line), 0);
         }
 
-
-        int total_bytes = sizeof(f_contents);
-        int bytes_sent = 0;
-        int bytes_sent_total = 0;
-        while(bytes_sent_total < total_bytes) {
-            bytes_sent = send(remote_fd, f_contents, total_bytes, 0);
-            bytes_sent_total += bytes_sent;
-        }
-
-        free(f_contents);
-        close(remote_fd);
+        close(r_fd);
     }
 
     return 0;
